@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>DYONISOS — Cave à vin 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#d4af37;--gold2:#f0d27a;--cream:#f3e9d2;--ink:#e9dfca;--muted:#a8997f;--bg:#0b0806;--panel:rgba(22,15,11,.94);--line:rgba(212,175,55,.22);--wine:#7b1e2b}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;overflow:hidden;overscroll-behavior:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+.vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 45%,rgba(0,0,0,.55) 100%)}
+header.top{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;background:linear-gradient(180deg,rgba(8,5,4,.85),rgba(8,5,4,0));pointer-events:none;z-index:5}
+header.top>*{pointer-events:auto}
+.logo{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:26px;letter-spacing:.32em;color:var(--gold);text-shadow:0 0 18px rgba(212,175,55,.35);line-height:1}
+.sub{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px}
+.dot{width:6px;height:6px;border-radius:50%;background:#777;display:inline-block}
+.dot.cloud{background:#4fae6b;box-shadow:0 0 6px #4fae6b}
+.dot.local{background:#e8913a}
+.actions{display:flex;gap:8px}
+.ic{width:42px;height:42px;border-radius:13px;border:1px solid var(--line);background:rgba(25,17,12,.75);color:var(--gold2);display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.ic svg{width:20px;height:20px}
+.ic.on{background:rgba(212,175,55,.2);border-color:var(--gold)}
+.stats{position:fixed;left:14px;top:calc(66px + env(safe-area-inset-top));font-size:12px;color:var(--muted);z-index:4;display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:5px 10px;border-radius:999px;background:rgba(25,17,12,.7);border:1px solid var(--line);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.chip b{color:var(--cream);font-weight:600}
+.hint{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);font-size:12px;color:var(--muted);background:rgba(20,14,10,.75);border:1px solid var(--line);padding:8px 14px;border-radius:999px;white-space:nowrap;z-index:3;transition:opacity .4s;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+.legend{position:fixed;right:14px;top:calc(66px + env(safe-area-inset-top));z-index:4;display:none;flex-direction:column;gap:4px;font-size:11px;background:rgba(20,14,10,.8);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.legend.on{display:flex}
+.legend span{display:flex;align-items:center;gap:7px}
+.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:57vh;background:var(--panel);border-top:1px solid var(--line);border-radius:22px 22px 0 0;transform:translateY(105%);transition:transform .45s cubic-bezier(.2,.8,.2,1);z-index:10;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 18px calc(22px + env(safe-area-inset-bottom));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 -10px 40px rgba(0,0,0,.5)}
+.sheet.tall{max-height:88vh}
+.sheet.open{transform:none}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);margin:-8px auto 12px}
+.close{position:sticky;top:0;float:right;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:rgba(40,28,20,.9);color:var(--cream);font-size:20px;line-height:1;cursor:pointer;z-index:2;margin:-6px -4px 0 8px}
+@media (min-width:820px){
+ .sheet{left:auto;right:16px;top:16px;bottom:16px;width:410px;max-height:none!important;border-radius:20px;border:1px solid var(--line);transform:translateX(115%)}
+ .sheet .grab{display:none}
+ .stats{top:76px}.legend{top:76px;right:440px}
+}
+h2{font-family:"Cormorant Garamond",serif;font-size:30px;line-height:1.05;margin:2px 0 4px;color:var(--cream);font-weight:700}
+h3{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin:20px 0 9px;font-weight:600}
+.meta{color:var(--muted);font-size:13px;line-height:1.5}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.tag{font-size:11px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);color:var(--gold2)}
+.status{margin-top:14px;border-radius:16px;padding:14px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.status .lab{font-family:"Cormorant Garamond",serif;font-size:24px;font-weight:700}
+.status .why{font-size:13px;color:var(--muted);margin-top:2px}
+.track{position:relative;height:8px;border-radius:4px;margin:16px 0 6px;background:linear-gradient(90deg,#5b8def 0%,#4fae6b 30%,#d4af37 55%,#e8913a 80%,#7d7468 100%)}
+.track .mk{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:var(--cream);border:3px solid #1a120c;transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--gold)}
+.ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.src{font-size:11px;color:var(--muted);margin-top:8px;font-style:italic}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.card{border:1px solid var(--line);border-radius:14px;padding:11px 12px;background:rgba(255,255,255,.025)}
+.card.full{grid-column:1/-1}
+.card .k{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.card .v{font-size:19px;font-family:"Cormorant Garamond",serif;font-weight:700;color:var(--cream);margin-top:3px}
+.card .t{font-size:12.5px;color:#cfc3ab;margin-top:4px;line-height:1.45}
+.pairs{display:flex;flex-wrap:wrap;gap:6px}
+.pair{font-size:12.5px;padding:6px 11px;border-radius:999px;background:rgba(123,30,43,.35);border:1px solid rgba(180,60,70,.35);color:#f2d9d9}
+.note{font-size:13px;color:#cfc3ab;line-height:1.55;white-space:pre-wrap}
+.btns{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap}
+.btn{flex:1;min-width:120px;padding:13px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--cream);font:600 14px Inter,sans-serif;cursor:pointer}
+.btn.pri{background:linear-gradient(180deg,#e0bd52,#b8902a);color:#1a1108;border-color:transparent}
+.btn.dan{border-color:rgba(200,70,70,.5);color:#f0a8a8}
+.btn.ai{background:linear-gradient(180deg,rgba(123,30,43,.6),rgba(80,18,28,.6));border-color:rgba(200,80,90,.4)}
+.btn:disabled{opacity:.5}
+form .f{margin-bottom:12px}
+label.l{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+input,select,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--cream);font:16px Inter,sans-serif;outline:none;-webkit-appearance:none;appearance:none}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--gold) 50%),linear-gradient(135deg,var(--gold) 50%,transparent 50%);background-position:calc(100% - 18px) 52%,calc(100% - 13px) 52%;background-size:5px 5px;background-repeat:no-repeat}
+input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+textarea{min-height:76px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.err{color:#f0a8a8;font-size:13px;margin-top:8px;min-height:1em}
+.inv-item{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid rgba(212,175,55,.1);cursor:pointer}
+.inv-item:active{background:rgba(212,175,55,.06)}
+.inv-item .d{width:10px;height:10px;border-radius:50%;flex:none}
+.inv-item .n{font-family:"Cormorant Garamond",serif;font-size:18px;font-weight:700;color:var(--cream);line-height:1.1}
+.inv-item .m{font-size:12px;color:var(--muted)}
+.inv-item .pos{margin-left:auto;font-size:11px;color:var(--gold2);white-space:nowrap}
+.ai-box{border:1px solid rgba(200,80,90,.35);border-radius:14px;padding:12px;background:rgba(123,30,43,.12)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+#toast{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translate(-50%,-20px);opacity:0;transition:.35s;z-index:20;background:rgba(20,14,10,.95);border:1px solid var(--gold);color:var(--cream);padding:10px 16px;border-radius:12px;font-size:13px;max-width:90vw;text-align:center;pointer-events:none}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:50;transition:opacity .8s}
+#loading .logo{font-size:34px}
+#loading .sub{justify-content:center;margin-top:12px}
+#loading.gone{opacity:0;pointer-events:none}
+.muted{color:var(--muted);font-size:12.5px;line-height:1.5}
+.slotbadge{display:inline-block;font-size:11px;padding:3px 8px;border-radius:7px;background:rgba(212,175,55,.15);color:var(--gold2);letter-spacing:.06em}
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="0"></canvas>
+<div class="vignette"></div>
+
+<header class="top">
+  <div>
+    <div class="logo">DYONISOS</div>
+    <div class="sub"><span class="dot" id="syncDot"></span><span id="caveName">Cave à vin</span></div>
+  </div>
+  <div class="actions">
+    <button class="ic" id="btnMat" title="Maturité" aria-label="Afficher la maturité">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17" /><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none" opacity=".55"/></svg>
+    </button>
+    <button class="ic" id="btnInv" title="Inventaire" aria-label="Inventaire">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+    </button>
+    <button class="ic" id="btnCfg" title="Configurer la cave" aria-label="Configurer la cave">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9.2h17M3.5 14.8h17M9.2 3.5v17M14.8 3.5v17"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="stats" id="stats"></div>
+<div class="legend" id="legend">
+  <span><i style="background:#5b8def"></i>Trop jeune</span>
+  <span><i style="background:#4fae6b"></i>Prêt à boire</span>
+  <span><i style="background:#d4af37"></i>À son apogée</span>
+  <span><i style="background:#e8913a"></i>À boire vite</span>
+  <span><i style="background:#8a8278"></i>Déclin</span>
+</div>
+<div class="hint" id="hint">Touchez le cul d'une bouteille pour la sortir · une case vide pour ajouter</div>
+
+<section class="sheet" id="sheet" aria-live="polite">
+  <div class="grab"></div>
+  <button class="close" id="sheetClose" aria-label="Fermer">×</button>
+  <div id="sheetBody"></div>
+</section>
+
+<div id="toast"></div>
+<div id="loading"><div><div class="logo">DYONISOS</div><div class="sub">Initialisation de la cave…</div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const YEAR = new Date().getFullYear();
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+if(!window.THREE){ $('#loading .sub').textContent='Impossible de charger le moteur 3D. Vérifiez votre connexion.'; return; }
+
+/* ============================ SAVOIR DU VIN ============================ */
+const TYPES = {
+  rouge_leger:{label:'Rouge léger & fruité',ex:'Beaujolais, Gamay, Pinot noir jeune, rouges de Loire souples',temp:[13,15],garde:[1,5],glass:0x1f3a22,cap:0x8a1a2c,accent:'#8c1c2c',
+    verre:'Verre ballon type Bourgogne, rempli au tiers.',
+    aer:a=>'Pas besoin de carafe : ouvrez la bouteille 15 à 30 min avant le service.',
+    accords:['Charcuterie & terrines','Volaille rôtie','Pizza, burger maison','Fromages à pâte molle','Cuisine du quotidien']},
+  rouge_moyen:{label:'Rouge équilibré',ex:'Bourgogne, Côtes-du-Rhône, Chinon, Saint-Émilion souple',temp:[15,16],garde:[3,10],glass:0x1c3420,cap:0x6b0f1a,accent:'#7b1e2b',
+    verre:'Verre universel ou type Bourgogne.',
+    aer:a=> a<6?'Encore jeune : carafez 30 à 60 min pour l\'ouvrir.':'Ouvrez 1 h avant, sans carafe, pour préserver le bouquet.',
+    accords:['Viandes rouges grillées','Magret de canard','Plats aux champignons','Comté, tomme, saint-nectaire']},
+  rouge_charpente:{label:'Rouge charpenté de garde',ex:'Bordeaux, Hermitage, Côte-Rôtie, Madiran, Cahors, Barolo',temp:[16,18],garde:[5,20],glass:0x162b18,cap:0x4a0b14,accent:'#5e1220',
+    verre:'Grand verre type Bordeaux (tulipe haute).',
+    aer:a=> a<8?'Jeune et tannique : carafez 1 h 30 à 2 h avant le service.': a<15?'Carafez environ 1 h, en goûtant au fur et à mesure.':'Vin ancien : redressez la bouteille 24 à 48 h avant, puis décantez délicatement juste avant de servir (dépôt).',
+    accords:['Côte de bœuf','Gigot d\'agneau','Gibier & plats en sauce','Fromages affinés']},
+  blanc_vif:{label:'Blanc sec & vif',ex:'Muscadet, Sancerre, Chablis, Picpoul, Riesling sec',temp:[8,10],garde:[1,4],glass:0x7d9a4a,cap:0xe0d3a6,accent:'#8a7a2e',
+    verre:'Verre tulipe de taille moyenne.',
+    aer:a=>'Pas de carafe : servez frais dès l\'ouverture.',
+    accords:['Huîtres & fruits de mer','Poissons grillés','Fromage de chèvre','Sushis & ceviche']},
+  blanc_gras:{label:'Blanc sec ample',ex:'Meursault, Chardonnay boisé, Condrieu, Hermitage blanc, Pessac blanc',temp:[11,13],garde:[3,12],glass:0x6f7f3a,cap:0xc9a24a,accent:'#9a7a1e',
+    verre:'Verre ample type Bourgogne.',
+    aer:a=> a<5?'Jeune et boisé : carafez 20 à 30 min.':'Ouvrez 30 min avant, sans carafe. Évitez de trop le refroidir.',
+    accords:['Volaille à la crème','Saint-Jacques, poissons en sauce','Homard & langoustines','Comté affiné']},
+  liquoreux:{label:'Blanc moelleux / liquoreux',ex:'Sauternes, Coteaux du Layon, Vendanges tardives, Tokaji',temp:[7,9],garde:[5,40],glass:0xc79a3a,cap:0x8a5a1a,accent:'#a8741a',
+    verre:'Petit verre tulipe.',
+    aer:a=> a>20?'Pas de carafe. Un vieux liquoreux s\'apprécie un peu moins froid (10–12 °C).':'Pas de carafe : servez bien frais.',
+    accords:['Foie gras','Roquefort & bleus','Tarte aux fruits jaunes','Cuisine épicée douce']},
+  rose:{label:'Rosé',ex:'Provence, Tavel, Bandol rosé',temp:[8,10],garde:[0,2],glass:0xe0a29a,cap:0xd88a9a,accent:'#c0606e',
+    verre:'Verre tulipe.',
+    aer:a=>'Pas de carafe : servez frais dès l\'ouverture.',
+    accords:['Grillades d\'été','Salades composées','Cuisine méditerranéenne','Cuisine asiatique']},
+  effervescent:{label:'Champagne / effervescent',ex:'Champagne, Crémant, Franciacorta',temp:[7,9],garde:[1,5],glass:0x24402a,cap:0xd4af37,accent:'#b08a1e',
+    verre:'Verre tulipe (plus aromatique que la flûte).',
+    aer:a=>'Jamais de carafe. Ouvrez au dernier moment, bouteille inclinée à 45° : on tourne la bouteille, pas le bouchon.',
+    accords:['Apéritif','Huîtres & crustacés','Sushis','Volaille (blanc de noirs)']},
+  mute:{label:'Vin muté / doux naturel',ex:'Porto, Banyuls, Maury, Rivesaltes',temp:[14,16],garde:[5,40],glass:0x2b1a0e,cap:0x3a1f14,accent:'#6a3a1e',
+    verre:'Petit verre tulipe.',
+    aer:a=>'Porto Vintage : décantez 1 à 2 h (dépôt). Tawny, Banyuls, Maury : servez sans carafe.',
+    accords:['Chocolat noir','Fromages bleus','Desserts aux fruits rouges','Figues & fruits secs']}
+};
+const REGIONS = [['Bordeaux',1.3,'bordeaux'],['Bourgogne',1,'bourgogne'],['Beaujolais',.8,'bourgogne'],['Vallée du Rhône',1.15,'bourgogne'],['Loire',.9,'bourgogne'],['Alsace',1,'alsace'],['Champagne',1,'champagne'],['Languedoc-Roussillon',.9,'bordeaux'],['Provence',.8,'bordeaux'],['Sud-Ouest',1.15,'bordeaux'],['Jura',1.3,'bourgogne'],['Savoie',.8,'bourgogne'],['Corse',.9,'bordeaux'],['Italie',1,'bordeaux'],['Espagne',1,'bordeaux'],['Portugal',1,'bordeaux'],['Allemagne',1,'alsace'],['Nouveau Monde',.9,'bordeaux'],['Autre',1,'bordeaux']];
+const REG = {}; REGIONS.forEach(r=>REG[r[0]]={f:r[1],shape:r[2]});
+const STATUS = {
+  jeune:{lab:'Trop jeune',col:'#5b8def',ord:4},
+  pret:{lab:'Prêt à boire',col:'#4fae6b',ord:2},
+  apogee:{lab:'À son apogée',col:'#d4af37',ord:1},
+  vite:{lab:'À boire sans tarder',col:'#e8913a',ord:0},
+  declin:{lab:'Au-delà de l\'apogée',col:'#8a8278',ord:3}
+};
+
+function wineInfo(b){
+  const T = TYPES[b.type] || TYPES.rouge_moyen;
+  const reg = REG[b.region] || {f:1};
+  const f = (b.type==='effervescent'||b.type==='rose') ? 1 : reg.f;
+  const mill = parseInt(b.millesime,10) || null;
+  const g0 = Math.round(T.garde[0]*f), g1 = Math.max(g0+1, Math.round(T.garde[1]*f));
+  let start, end, source = 'Estimation DYONISOS (type, région, millésime)';
+  if(mill){ start = mill+g0; end = mill+g1; }
+  else { const by = b.added ? new Date(b.added).getFullYear() : YEAR; start = by; end = by + Math.max(2, Math.min(4, g1-g0)); source = 'Non millésimé : à boire dans les années suivant l\'achat'; }
+  if(b.ai && +b.ai.apogee_debut && +b.ai.apogee_fin){ start=+b.ai.apogee_debut; end=+b.ai.apogee_fin; source='Avis du sommelier IA'; }
+  if(+b.boireDe || +b.boireA){ start = +b.boireDe || start; end = +b.boireA || end; source='Votre garde personnalisée'; }
+  if(end < start){ const t=start; start=end; end=t; }
+  const span = Math.max(1, end-start), peak = start + Math.round(span*0.55), tol = Math.max(1, Math.round(span*0.15));
+  let st, why;
+  if(YEAR < start){ st='jeune'; why=`Patience : idéalement à partir de ${start}.`; }
+  else if(YEAR > end){ st='declin'; why=`Fenêtre idéale terminée en ${end}. À ouvrir rapidement, sans trop d'attentes.`; }
+  else if(YEAR >= end - tol + 1 && end-start>1){ st='vite'; why=`Fin de fenêtre prévue en ${end}. C'est le moment.`; }
+  else if(Math.abs(YEAR-peak) <= tol){ st='apogee'; why='Le moment idéal pour l\'ouvrir.'; }
+  else { st='pret'; why=`Déjà agréable, peut encore gagner en complexité jusque vers ${peak}.`; }
+  const age = mill ? YEAR-mill : 2;
+  const tmid = (T.temp[0]+T.temp[1])/2;
+  let tip;
+  if(tmid > 13.5){ const m = Math.max(10, Math.round((tmid-12)*12/5)*5); tip = `Sortez-la de la cave environ ${m} min avant (pièce à ~20 °C).`; }
+  else if(tmid < 11){ const m = Math.round(((12-tmid)*10+10)/5)*5; tip = `Environ ${m} min au réfrigérateur, ou ${Math.max(5,Math.round(m/3/5)*5)} min dans un seau eau + glaçons.`; }
+  else tip = 'Directement de la cave : elle est déjà quasiment à température.';
+  return {T, start, end, peak, st, S:STATUS[st], why, source, age, mill, tip, aer:T.aer(age)};
+}
+
+/* ============================ ÉTAT & STOCKAGE ============================ */
+const LS_KEY = 'dyonisos.v1';
+let cave = {name:'Ma cave', rows:0, cols:0, history:[]};
+let bottles = {};
+(function loadLocal(){ try{ const d = JSON.parse(localStorage.getItem(LS_KEY)||'null'); if(d){ cave = Object.assign(cave, d.cave||{}); bottles = d.bottles||{}; } }catch(e){} })();
+function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({cave, bottles})); }catch(e){} }
+
+let caveRef=null, botCol=null;
+const chains = {};
+function queueWrite(k, fn){
+  const p = (chains[k]||Promise.resolve()).then(fn).catch(e=>{
+    console.warn('db', e);
+    if(e && e.code==='quota_exceeded') toast('Stockage plein : retirez quelques bouteilles dégustées de l\'historique.');
+  });
+  chains[k]=p; return p;
+}
+const clone = o => JSON.parse(JSON.stringify(o));
+function persistCave(){ saveLocal(); if(caveRef){ const d=clone(cave); queueWrite('cave', ()=>caveRef.set(d)); } }
+function persistBottle(key){ saveLocal(); if(botCol){ const b = bottles[key]; const d = b?clone(b):null; queueWrite('b:'+key, ()=> d ? botCol.doc(key).set(d) : botCol.doc(key).delete()); } }
+function setSync(m){ const d=$('#syncDot'); d.className='dot '+m; d.title = m==='cloud'?'Synchronisé dans le cloud':'Enregistré sur cet appareil'; }
+setSync('local');
+
+async function initCloud(){
+  try{
+    if(!window.claude || !window.claude.use) return;
+    const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+    if(!db || !user) return;
+    const uid = await user.id(); if(!uid) return;
+    caveRef = db.doc('data/users/'+uid+'/cave');
+    botCol = caveRef.collection('bottles');
+    let caveConfirmed=false, botConfirmed=false;
+    caveRef.onSnapshot(snap=>{
+      if(snap.exists){
+        const d = clone(snap.data()||{});
+        const changed = d.rows!==cave.rows || d.cols!==cave.cols;
+        cave = Object.assign({name:'Ma cave',rows:0,cols:0,history:[]}, d);
+        saveLocal(); applyCave(changed);
+      } else if(!snap.metadata.fromCache && !caveConfirmed && cave.rows){
+        persistCave();
+      }
+      if(!snap.metadata.fromCache){ caveConfirmed=true; setSync('cloud'); }
+    }, e=>setSync('local'));
+    botCol.onSnapshot(qs=>{
+      if(qs.empty){
+        if(qs.metadata.fromCache) return;
+        if(!botConfirmed && Object.keys(bottles).length){ botConfirmed=true; Object.keys(bottles).forEach(persistBottle); return; }
+      }
+      if(!qs.metadata.fromCache) botConfirmed=true;
+      const nb = {}; qs.docs.forEach(d=>{ if(d.exists) nb[d.id]=clone(d.data()); });
+      bottles = nb; saveLocal(); syncBottles(); refreshStats();
+      if(sel && !bottles[sel.key]) closeSheet();
+    }, e=>setSync('local'));
+  }catch(e){ console.warn(e); }
+}
+
+/* ============================ 3D ============================ */
+const canvas = $('#c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0806);
+scene.fog = new THREE.Fog(0x0b0806, 4, 11);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 40);
+
+// environnement (reflets du verre)
+(function(){
+  const pm = new THREE.PMREMGenerator(renderer); const es = new THREE.Scene();
+  es.add(new THREE.Mesh(new THREE.BoxGeometry(10,10,10), new THREE.MeshBasicMaterial({color:0x1a120c, side:THREE.BackSide})));
+  const pan=(c,x,y,z,w,h)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({color:c, side:THREE.DoubleSide})); m.position.set(x,y,z); m.lookAt(0,0,0); es.add(m); };
+  pan(0xfff0d0,0,4,3,6,1.2); pan(0xffb066,-4,1,2,1.4,4); pan(0xffe2b0,4,2,1.5,1.4,3); pan(0x3a2416,0,-4,0,8,8);
+  scene.environment = pm.fromScene(es, 0.02).texture; pm.dispose();
+})();
+
+const hemi = new THREE.HemisphereLight(0xffe7c4, 0x1a0f08, 0.55); scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffd9a0, 0.95); key.position.set(1.6,2.8,3.2); scene.add(key);
+const fill = new THREE.PointLight(0xffb070, 0.55, 7); fill.position.set(-1.6,1.2,1.8); scene.add(fill);
+const focus = new THREE.PointLight(0xfff0d8, 0, 3); scene.add(focus);
+const BASE = {hemi:0.55, key:0.95, fill:0.55};
+
+function makeTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h); const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; t.anisotropy=4; return t; }
+const woodV = makeTex(256,1024,(g,w,h)=>{
+  g.fillStyle='#5b3b22'; g.fillRect(0,0,w,h);
+  for(let i=0;i<200;i++){ g.fillStyle=`rgba(${25+Math.random()*30|0},${12+Math.random()*14|0},4,${0.06+Math.random()*0.22})`; g.fillRect(Math.random()*w,0,0.6+Math.random()*2.6,h); }
+  for(let i=0;i<70;i++){ g.strokeStyle=`rgba(255,200,140,${Math.random()*0.07})`; g.lineWidth=1+Math.random()*2; g.beginPath(); let x=Math.random()*w; g.moveTo(x,0); for(let y=0;y<=h;y+=32){ x+=(Math.random()-.5)*6; g.lineTo(x,y);} g.stroke(); }
+});
+woodV.wrapS = woodV.wrapT = THREE.RepeatWrapping;
+const woodH = woodV.clone(); woodH.center.set(.5,.5); woodH.rotation = Math.PI/2; woodH.needsUpdate = true;
+const matWoodV = new THREE.MeshStandardMaterial({map:woodV, roughness:.72, metalness:0});
+const matWoodH = new THREE.MeshStandardMaterial({map:woodH, roughness:.72, metalness:0});
+const matBack = new THREE.MeshStandardMaterial({color:0x1d130c, roughness:.95});
+const matRail = new THREE.MeshStandardMaterial({color:0x6b4628, roughness:.6});
+const brick = makeTex(512,512,(g,w,h)=>{
+  g.fillStyle='#1c130e'; g.fillRect(0,0,w,h);
+  const bh=32, bw=96;
+  for(let y=0;y<h;y+=bh){ const off = (y/bh)%2 ? bw/2 : 0; for(let x=-bw;x<w+bw;x+=bw){ const l=24+Math.random()*16; g.fillStyle=`rgb(${l+18|0},${l*0.62|0},${l*0.45|0})`; g.fillRect(x+off+3,y+3,bw-6,bh-6); } }
+});
+brick.wrapS = brick.wrapT = THREE.RepeatWrapping; brick.repeat.set(5,3);
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(14,7), new THREE.MeshStandardMaterial({map:brick, roughness:1}));
+scene.add(wall);
+const floorTex = makeTex(512,512,(g,w,h)=>{ g.fillStyle='#120c09'; g.fillRect(0,0,w,h); for(let y=0;y<h;y+=128) for(let x=0;x<w;x+=128){ const l=14+Math.random()*10; g.fillStyle=`rgb(${l+6|0},${l|0},${l*.8|0})`; g.fillRect(x+3,y+3,122,122);} });
+floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(8,8);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(16,16), new THREE.MeshStandardMaterial({map:floorTex, roughness:.9}));
+floor.rotation.x = -Math.PI/2; scene.add(floor);
+
+/* -- profils de bouteilles (rayon, hauteur) -- */
+function punt(R,d){ return [[0,d],[R*.18,d*.96],[R*.4,d*.75],[R*.6,d*.45],[R*.8,d*.15],[R*.9,.002],[R*.96,0],[R,.005]]; }
+const PROFILES = {
+  bordeaux:{R:.037,L:.30,neck:.0145,capLen:.05,labelY:.10,labelH:.085,pts:[...punt(.037,.024),[.037,.19],[.034,.205],[.026,.215],[.018,.225],[.0145,.235],[.0142,.282],[.0158,.284],[.0158,.296],[.012,.30],[0,.30]]},
+  bourgogne:{R:.039,L:.295,neck:.0148,capLen:.05,labelY:.075,labelH:.08,pts:[...punt(.039,.026),[.039,.14],[.0375,.17],[.033,.195],[.026,.215],[.019,.232],[.0148,.245],[.0145,.28],[.016,.282],[.016,.292],[.012,.295],[0,.295]]},
+  alsace:{R:.0335,L:.33,neck:.0145,capLen:.055,labelY:.08,labelH:.075,pts:[...punt(.0335,.02),[.0335,.15],[.031,.19],[.025,.225],[.019,.255],[.0148,.275],[.0145,.318],[.016,.32],[.016,.328],[.012,.33],[0,.33]]},
+  champagne:{R:.0395,L:.30,neck:.016,capLen:.07,labelY:.075,labelH:.075,pts:[...punt(.0395,.036),[.0395,.15],[.037,.18],[.031,.205],[.023,.225],[.0175,.24],[.016,.28],[.0185,.283],[.0185,.293],[.014,.30],[0,.30]]}
+};
+for(const k in PROFILES){
+  const P = PROFILES[k];
+  P.geo = new THREE.LatheGeometry(P.pts.map(p=>new THREE.Vector2(p[0],p[1])), 36);
+  const cr = P.neck + 0.0016;
+  P.capGeo = new THREE.CylinderGeometry(cr, cr*1.04, P.capLen, 28); P.capGeo.translate(0, P.L - P.capLen/2 + 0.0015, 0);
+}
+function shapeFor(b){ if(b.type==='effervescent') return 'champagne'; if(b.type==='mute') return 'bordeaux'; return (REG[b.region]||{}).shape || 'bordeaux'; }
+
+const glassMats={}, capMats={}, ringMats={};
+const glassMat = t => glassMats[t] || (glassMats[t] = new THREE.MeshStandardMaterial({color:(TYPES[t]||TYPES.rouge_moyen).glass, roughness:.1, metalness:.25, envMapIntensity:1.7, side:THREE.DoubleSide}));
+const capMat = t => capMats[t] || (capMats[t] = new THREE.MeshStandardMaterial({color:(TYPES[t]||TYPES.rouge_moyen).cap, roughness:.35, metalness:.6}));
+const ringMat = s => ringMats[s] || (ringMats[s] = new THREE.MeshBasicMaterial({color:new THREE.Color(STATUS[s].col), transparent:true, opacity:.95}));
+const ringGeo = new THREE.RingGeometry(.78, 1, 40);
+
+const plusTex = makeTex(128,128,(g,w,h)=>{
+  g.strokeStyle='rgba(212,175,55,.55)'; g.lineWidth=3; g.setLineDash([7,7]); g.beginPath(); g.arc(64,64,40,0,Math.PI*2); g.stroke();
+  g.setLineDash([]); g.lineWidth=4; g.strokeStyle='rgba(240,210,122,.7)'; g.beginPath(); g.moveTo(64,48); g.lineTo(64,80); g.moveTo(48,64); g.lineTo(80,64); g.stroke();
+});
+const plateMat = new THREE.MeshBasicMaterial({map:plusTex, transparent:true, opacity:.55, depthWrite:false});
+const plateMatHot = new THREE.MeshBasicMaterial({map:plusTex, transparent:true, opacity:1, depthWrite:false, color:0xffe08a});
+
+const CELL=.1, TH=.012, DEPTH=.36, PLINTH=.07;
+let W=0, H=0, rack=null;
+const objs = {};   // key -> bottle object
+const plates = {}; // key -> plate mesh
+let numberMeshes = [];
+
+function cellCenter(r,c){ return new THREE.Vector3(-W/2 + TH + c*(CELL+TH) + CELL/2, PLINTH + (cave.rows-r)*(CELL+TH) - CELL/2, 0); }
+function disposeTree(o){ o.traverse(n=>{ if(n.isMesh){ if(n.geometry && !n.geometry.userData.shared) n.geometry.dispose(); } }); }
+
+function numTex(txt){ return makeTex(64,64,(g)=>{ g.fillStyle='rgba(240,210,122,.85)'; g.font='600 34px Inter, sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(txt,32,34); }); }
+
+function buildRack(){
+  if(rack){ scene.remove(rack); disposeTree(rack); }
+  Object.keys(objs).forEach(k=>removeBottle(k));
+  Object.keys(plates).forEach(k=>delete plates[k]);
+  numberMeshes.forEach(m=>m.material.map && m.material.map.dispose()); numberMeshes=[];
+  const R=cave.rows, C=cave.cols;
+  W = C*CELL + (C+1)*TH; H = R*CELL + (R+1)*TH;
+  rack = new THREE.Group();
+  const add=(geo,mat,x,y,z)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); rack.add(m); return m; };
+  const shelfGeo = new THREE.BoxGeometry(W, TH, DEPTH);
+  for(let i=0;i<=R;i++) add(shelfGeo, matWoodH, 0, PLINTH + i*(CELL+TH) + TH/2, -DEPTH/2);
+  const vGeo = new THREE.BoxGeometry(TH, H, DEPTH);
+  for(let j=0;j<=C;j++) add(vGeo, matWoodV, -W/2 + j*(CELL+TH) + TH/2, PLINTH + H/2, -DEPTH/2);
+  const sideGeo = new THREE.BoxGeometry(.026, H+.03, DEPTH+.012);
+  add(sideGeo, matWoodV, -W/2-.013, PLINTH + H/2 + .015, -DEPTH/2);
+  add(sideGeo, matWoodV,  W/2+.013, PLINTH + H/2 + .015, -DEPTH/2);
+  add(new THREE.BoxGeometry(W+.075, .032, DEPTH+.03), matWoodH, 0, PLINTH + H + .03, -DEPTH/2);
+  add(new THREE.BoxGeometry(W+.052, PLINTH, DEPTH+.004), matWoodH, 0, PLINTH/2, -DEPTH/2);
+  add(new THREE.BoxGeometry(W, H, .01), matBack, 0, PLINTH + H/2, -DEPTH - .005);
+  const railGeo = new THREE.CylinderGeometry(.006,.006,W,10); railGeo.rotateZ(Math.PI/2);
+  for(let r=0;r<R;r++){
+    const yb = cellCenter(r,0).y - CELL/2 + .006;
+    add(railGeo, matRail, 0, yb, -.07); add(railGeo, matRail, 0, yb, -.25);
+  }
+  const plateGeo = new THREE.PlaneGeometry(CELL*.82, CELL*.82);
+  for(let r=0;r<R;r++) for(let c=0;c<C;c++){
+    const k = r+'-'+c, cc = cellCenter(r,c);
+    const p = add(plateGeo, plateMat, cc.x, cc.y, -.03); p.userData.slot = k; plates[k]=p;
+  }
+  const numGeo = new THREE.PlaneGeometry(.045,.045);
+  for(let c=0;c<C;c++){ const m = new THREE.Mesh(numGeo, new THREE.MeshBasicMaterial({map:numTex(String(c+1)), transparent:true, depthWrite:false})); const cc=cellCenter(0,c); m.position.set(cc.x, PLINTH+H+.075, .005); rack.add(m); numberMeshes.push(m); }
+  for(let r=0;r<R;r++){ const m = new THREE.Mesh(numGeo, new THREE.MeshBasicMaterial({map:numTex(String.fromCharCode(65+r)), transparent:true, depthWrite:false})); const cc=cellCenter(r,0); m.position.set(-W/2-.06, cc.y, .005); rack.add(m); numberMeshes.push(m); }
+  scene.add(rack);
+  wall.position.set(0, 3, -DEPTH - .45);
+  syncBottles();
+  fitCamera(true);
+}
+const slotName = k => { const [r,c]=k.split('-').map(Number); return String.fromCharCode(65+r)+(c+1); };
+
+function makeBottle(k, b){
+  const shape = shapeFor(b), P = PROFILES[shape];
+  const pivot = new THREE.Group(), tilt = new THREE.Group(), inner = new THREE.Group();
+  inner.rotation.x = -Math.PI/2; pivot.add(tilt); tilt.add(inner);
+  const glass = new THREE.Mesh(P.geo, glassMat(b.type)); glass.userData.bottle = k; glass.rotation.y = Math.random()*Math.PI*2; inner.add(glass);
+  const cap = new THREE.Mesh(P.capGeo, capMat(b.type)); inner.add(cap);
+  const info = wineInfo(b);
+  const ring = new THREE.Mesh(ringGeo, ringMat(info.st)); ring.scale.setScalar(P.R*1.02); ring.position.z = .004; ring.visible = matMode; tilt.add(ring);
+  const [r,c] = k.split('-').map(Number); const cc = cellCenter(r,c);
+  pivot.position.set(cc.x, cc.y - CELL/2 + .012 + P.R, -.014);
+  scene.add(pivot);
+  return {key:k, pivot, tilt, inner, glass, cap, ring, P, home:pivot.position.clone(), sig:sigOf(b), t:0, dir:0, label:null, spin:0, spinT:0};
+}
+const sigOf = b => [b.type, shapeFor(b)].join('|');
+function removeBottle(k){ const o=objs[k]; if(!o) return; moving.delete(o); scene.remove(o.pivot); if(o.label){ o.label.material.map.dispose(); o.label.material.dispose(); o.label.geometry.dispose(); } delete objs[k]; }
+function syncBottles(){
+  if(!cave.rows) return;
+  for(const k in objs){ if(!bottles[k] || sigOf(bottles[k])!==objs[k].sig){ if(sel && sel.key===k && bottles[k]) continue; removeBottle(k); } }
+  for(const k in bottles){
+    const [r,c]=k.split('-').map(Number); if(r>=cave.rows||c>=cave.cols) continue;
+    if(!objs[k]) objs[k]=makeBottle(k, bottles[k]);
+    else { const o=objs[k]; o.ring.material = ringMat(wineInfo(bottles[k]).st); }
+  }
+  for(const k in plates) plates[k].visible = !bottles[k];
+}
+
+/* -- étiquette (créée à la sortie) -- */
+function fitFont(g, text, weight, size, family, maxW){ let s=size; do{ g.font=`${weight} ${s}px ${family}`; s-=2; } while(g.measureText(text).width>maxW && s>18); }
+function makeLabel(o, b){
+  const P=o.P, T=TYPES[b.type]||TYPES.rouge_moyen;
+  const arc = 1.1*Math.PI, w = 1024, h = Math.round(1024 * P.labelH / (arc*P.R));
+  const tex = makeTex(w, h, (g)=>{
+    const grd = g.createLinearGradient(0,0,0,h); grd.addColorStop(0,'#f4ead4'); grd.addColorStop(1,'#e6d6b4');
+    g.fillStyle=grd; g.fillRect(0,0,w,h);
+    for(let i=0;i<3000;i++){ g.fillStyle=`rgba(110,80,40,${Math.random()*0.05})`; g.fillRect(Math.random()*w,Math.random()*h,2,2); }
+    g.strokeStyle=T.accent; g.lineWidth=7; g.strokeRect(150,26,724,h-52); g.lineWidth=1.5; g.strokeRect(164,40,696,h-80);
+    g.textAlign='center'; g.textBaseline='alphabetic';
+    g.fillStyle='#5a4630'; fitFont(g,(b.domaine||'').toUpperCase(),600,30,'Inter, sans-serif',620); g.fillText((b.domaine||'').toUpperCase(), 512, h*.2);
+    g.fillStyle='#24160c'; fitFont(g,b.nom||'',700,92,'"Cormorant Garamond", serif',640); g.fillText(b.nom||'', 512, h*.47);
+    g.fillStyle=T.accent; fitFont(g,b.appellation||b.region||'','italic 600',40,'"Cormorant Garamond", serif',620); g.fillText(b.appellation||b.region||'', 512, h*.62);
+    g.fillStyle='#24160c'; g.font='700 70px "Cormorant Garamond", serif'; g.fillText(b.millesime||'NV', 512, h*.84);
+  });
+  const geo = new THREE.CylinderGeometry(P.R+.0007, P.R+.0007, P.labelH, 48, 1, true, -arc/2, arc);
+  geo.translate(0, P.labelY, 0);
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({map:tex, roughness:.85, metalness:0, side:THREE.FrontSide}));
+  return m;
+}
+
+/* -- contrôles caméra -- */
+const ctl = {theta:.18, phi:1.42, r:2, tx:0, ty:.5, min:.35, max:4};
+const cur = {theta:.18, phi:1.42, r:2.6, tx:0, ty:.5};
+function fitCamera(snap){
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  const tanH = Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+  const hh = (H + PLINTH + .2)/2, hw = (W + .22)/2;
+  const d = Math.max(hh/tanH, hw/(tanH*camera.aspect)) + .1;
+  ctl.r = d; ctl.max = Math.max(1.2, d*1.8); ctl.min = .3;
+  ctl.tx = 0; ctl.ty = PLINTH + H/2 + (innerWidth<820 ? .02 : 0); ctl.theta = .16; ctl.phi = 1.45;
+  if(snap){ Object.assign(cur, {theta:ctl.theta, phi:ctl.phi, r:ctl.r*1.35, tx:ctl.tx, ty:ctl.ty}); }
+}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function clampCtl(){ ctl.theta=clamp(ctl.theta,-.85,.85); ctl.phi=clamp(ctl.phi,.95,1.9); ctl.r=clamp(ctl.r,ctl.min,ctl.max); ctl.tx=clamp(ctl.tx,-W/2,W/2); ctl.ty=clamp(ctl.ty,PLINTH,PLINTH+H); }
+function pan(dx,dy){ const k = 2*cur.r*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))/innerHeight; ctl.tx -= dx*k; ctl.ty += dy*k; }
+
+const pts = new Map(); let gest=null, pinch=null;
+function pinchState(){ const a=[...pts.values()]; return {d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1, mx:(a[0].x+a[1].x)/2, my:(a[0].y+a[1].y)/2}; }
+canvas.addEventListener('pointerdown', e=>{
+  try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pts.size===1) gest={sx:e.clientX,sy:e.clientY,t:performance.now(),moved:0,multi:false,pan:e.button===2||e.shiftKey};
+  else { if(gest) gest.multi=true; if(pts.size===2) pinch=pinchState(); }
+});
+canvas.addEventListener('pointermove', e=>{
+  const p=pts.get(e.pointerId); if(!p) return;
+  const dx=e.clientX-p.x, dy=e.clientY-p.y; p.x=e.clientX; p.y=e.clientY;
+  if(gest) gest.moved += Math.abs(dx)+Math.abs(dy);
+  if(pts.size===1){
+    if(sel){ sel.spinT += dx*.012; }
+    else if(gest && gest.pan) pan(dx,dy);
+    else { ctl.theta -= dx*.006; ctl.phi -= dy*.005; }
+  } else if(pts.size===2 && !sel && pinch){
+    const s=pinchState(); ctl.r *= pinch.d/s.d; pan(s.mx-pinch.mx, s.my-pinch.my); pinch=s;
+  }
+  clampCtl();
+});
+function endPtr(e){
+  const had = pts.has(e.pointerId); pts.delete(e.pointerId);
+  if(had && e.type==='pointerup' && gest && !gest.multi && gest.moved<10 && performance.now()-gest.t<600) onTap(e.clientX,e.clientY);
+  if(pts.size<2) pinch=null; if(pts.size===0) gest=null;
+}
+canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('wheel', e=>{ e.preventDefault(); if(sel) return; ctl.r *= 1 + e.deltaY*.0012; clampCtl(); }, {passive:false});
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function onTap(x,y){
+  ndc.set(x/innerWidth*2-1, -(y/innerHeight)*2+1); ray.setFromCamera(ndc, camera);
+  const targets = []; for(const k in objs) targets.push(objs[k].glass); for(const k in plates) if(plates[k].visible) targets.push(plates[k]);
+  const hit = ray.intersectObjects(targets, false)[0];
+  if(sel){
+    if(hit && hit.object.userData.bottle && hit.object.userData.bottle!==sel.key){ openBottle(hit.object.userData.bottle); return; }
+    if(!hit || hit.object.userData.bottle!==sel.key) closeSheet();
+    return;
+  }
+  if(!hit){ if(sheetMode) closeSheet(); return; }
+  if(hit.object.userData.bottle) openBottle(hit.object.userData.bottle);
+  else if(hit.object.userData.slot) openForm(hit.object.userData.slot, null);
+}
+
+/* -- animation de sortie -- */
+let sel = null;            // objet bouteille sélectionné
+const moving = new Set();
+let dim = 0;
+const ease = t => t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+const v1=new THREE.Vector3(), v2=new THREE.Vector3(), fwd=new THREE.Vector3(), right=new THREE.Vector3(), up=new THREE.Vector3();
+function showPoint(o, out){
+  const wide = innerWidth>=820;
+  const tanH = Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+  const frac = wide ? .55 : .3;
+  const d = o.P.L / (frac*2*tanH);
+  const nx = wide ? -(426/innerWidth) : 0, ny = wide ? 0 : .52;
+  camera.matrixWorld.extractBasis(right, up, fwd); fwd.negate();
+  out.copy(camera.position).addScaledVector(fwd,d).addScaledVector(up, ny*d*tanH).addScaledVector(right, nx*d*tanH*camera.aspect);
+  out.y -= o.P.L/2;
+  return d;
+}
+function poseBottle(o, t){
+  const tt = clamp(t,0,1);
+  v1.copy(o.home); v1.z += .4;
+  if(tt < .35){ o.pivot.position.lerpVectors(o.home, v1, ease(tt/.35)); o.tilt.rotation.x = 0; o.pivot.rotation.y = 0; }
+  else { const u = ease((tt-.35)/.65); showPoint(o, v2); o.pivot.position.lerpVectors(v1, v2, u); o.tilt.rotation.x = u*Math.PI/2; o.pivot.rotation.y = o.spin*u; }
+}
+
+/* ============================ UI ============================ */
+const sheet=$('#sheet'), body=$('#sheetBody'); let sheetMode=null;
+function openSheet(mode, html, tall){
+  sheetMode=mode; body.innerHTML=html; sheet.classList.toggle('tall', !!tall); sheet.classList.add('open'); sheet.scrollTop=0; $('#hint').style.opacity=0;
+}
+function closeSheet(){
+  sheet.classList.remove('open'); sheetMode=null; $('#hint').style.opacity=1;
+  if(sel){ const o=sel; sel=null; o.dir=-1; moving.add(o); }
+  for(const k in plates) plates[k].material=plateMat;
+}
+$('#sheetClose').onclick = closeSheet;
+
+let toastT=null;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), 2600); }
+
+let matMode=false;
+$('#btnMat').onclick=()=>{ matMode=!matMode; $('#btnMat').classList.toggle('on',matMode); $('#legend').classList.toggle('on',matMode); for(const k in objs) objs[k].ring.visible = matMode && objs[k]!==sel; toast(matMode?'Maturité affichée sur les culs de bouteilles.':'Maturité masquée.'); };
+$('#btnInv').onclick=()=>openInventory();
+$('#btnCfg').onclick=()=>openConfig(false);
+
+function refreshStats(){
+  const ks = Object.keys(bottles); let ready=0, urgent=0;
+  ks.forEach(k=>{ const s=wineInfo(bottles[k]).st; if(s==='pret'||s==='apogee') ready++; if(s==='vite'||s==='declin') urgent++; });
+  const cap = cave.rows*cave.cols;
+  $('#stats').innerHTML = cave.rows ? `<span class="chip"><b>${ks.length}</b> / ${cap} bouteilles</span><span class="chip"><b>${ready}</b> prêtes</span>${urgent?`<span class="chip" style="border-color:#e8913a"><b>${urgent}</b> à boire vite</span>`:''}` : '';
+  $('#caveName').textContent = cave.name || 'Ma cave';
+}
+
+/* --- fiche bouteille --- */
+function openBottle(k){
+  const b = bottles[k]; if(!b) return;
+  if(sel && sel.key!==k){ const o=sel; sel=null; o.dir=-1; moving.add(o); }
+  let o = objs[k]; if(!o) return;
+  if(!o.label){ o.label = makeLabel(o,b); o.inner.add(o.label); if(document.fonts){ document.fonts.ready.then(()=>{ if(o.label && objs[k]===o){ o.inner.remove(o.label); o.label.material.map.dispose(); o.label = makeLabel(o,bottles[k]||b); o.inner.add(o.label);} }); } }
+  o.spin = 0; o.spinT = 0; o.ring.visible=false;
+  sel = o; o.dir = 1; moving.add(o);
+  const camD = o.P.L / ((innerWidth>=820?.55:.3)*2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
+  if(ctl.r < camD + .45) ctl.r = Math.min(ctl.max, camD + .45);
+  renderFiche(k);
+}
+function renderFiche(k){
+  const b=bottles[k], I=wineInfo(b), T=I.T;
+  const lo = I.start-2, hi = I.end+2, pos = clamp((YEAR-lo)/(hi-lo),0,1)*100;
+  const ai = b.ai;
+  const accords = (ai && Array.isArray(ai.accords) && ai.accords.length) ? ai.accords : T.accords;
+  openSheet('fiche', `
+    <div class="slotbadge">Emplacement ${slotName(k)}</div>
+    <h2 style="margin-top:8px">${esc(b.nom)}</h2>
+    <div class="meta">${esc([b.domaine, b.appellation, b.region].filter(Boolean).join(' · '))}</div>
+    <div class="tags"><span class="tag">${esc(T.label)}</span><span class="tag">${b.millesime?esc(b.millesime):'Non millésimé'}</span>${b.cepages?`<span class="tag">${esc(b.cepages)}</span>`:''}${I.mill?`<span class="tag">${I.age} an${I.age>1?'s':''}</span>`:''}</div>
+
+    <div class="status">
+      <div class="lab" style="color:${I.S.col}">${I.S.lab}</div>
+      <div class="why">${esc(I.why)}</div>
+      <div class="track"><div class="mk" style="left:${pos}%"></div></div>
+      <div class="ticks"><span>Dès ${I.start}</span><span>Apogée ~${I.peak}</span><span>Jusqu'à ${I.end}</span></div>
+      <div class="src">${esc(I.source)}</div>
+    </div>
+
+    <h3>Service</h3>
+    <div class="grid">
+      <div class="card"><div class="k">Température</div><div class="v">${T.temp[0]}–${T.temp[1]} °C</div><div class="t">${esc(I.tip)}</div></div>
+      <div class="card"><div class="k">Verre</div><div class="t" style="margin-top:6px">${esc(T.verre)}</div></div>
+      <div class="card full"><div class="k">Aération</div><div class="t">${esc(I.aer)}</div></div>
+    </div>
+
+    <h3>Accords mets & vin</h3>
+    <div class="pairs">${accords.map(a=>`<span class="pair">${esc(a)}</span>`).join('')}</div>
+
+    <h3>Sommelier IA</h3>
+    <div id="aiZone">${ai ? aiHtml(ai) : `<div class="muted">Obtenez une fiche détaillée propre à cette cuvée : profil aromatique, apogée affinée, accords précis.</div><div class="btns" style="margin-top:10px"><button class="btn ai" id="aiBtn">Consulter le sommelier IA</button></div>`}</div>
+
+    ${b.notes||b.prix?`<h3>Mes notes</h3>${b.prix?`<div class="meta">Prix d'achat : ${esc(b.prix)} €</div>`:''}${b.notes?`<div class="note">${esc(b.notes)}</div>`:''}`:''}
+
+    <h3>Conservation</h3>
+    <div class="muted">Couchée, à l'abri de la lumière, entre 11 et 14 °C stables, ~70 % d'humidité, sans vibrations. Une fois ouverte : 2–3 jours au frais avec bouchon (rouge/blanc), 1–2 jours pour un effervescent avec bouchon hermétique.</div>
+
+    <div class="btns">
+      <button class="btn" id="bEdit">Modifier</button>
+      <button class="btn dan" id="bDrink">Déboucher</button>
+    </div>
+    <div class="btns" style="margin-top:8px"><button class="btn pri" id="bBack">Remettre en cave</button></div>
+  `);
+  $('#bEdit').onclick=()=>{ const o=sel; openForm(k, b); if(o){ sel=o; } };
+  $('#bBack').onclick=closeSheet;
+  const dr=$('#bDrink'); dr.onclick=()=>{
+    if(!dr.dataset.c){ dr.dataset.c=1; dr.textContent='Confirmer : bouteille bue'; return; }
+    cave.history = (cave.history||[]); cave.history.unshift({nom:b.nom, domaine:b.domaine||'', millesime:b.millesime||'', type:b.type, date:new Date().toISOString().slice(0,10)});
+    cave.history = cave.history.slice(0,150);
+    const o=sel; sel=null; if(o) removeBottle(k);
+    delete bottles[k]; persistBottle(k); persistCave();
+    sheet.classList.remove('open'); sheetMode=null; $('#hint').style.opacity=1;
+    syncBottles(); refreshStats(); toast('Santé, Enzo. Bouteille retirée de la cave.');
+  };
+  const ab=$('#aiBtn'); if(ab) ab.onclick=()=>askSommelier(k);
+}
+function aiHtml(ai){
+  return `<div class="ai-box">
+    ${ai.profil?`<div class="note">${esc(ai.profil)}</div>`:''}
+    <div class="grid" style="margin-top:10px">
+      ${ai.temperature?`<div class="card"><div class="k">Température IA</div><div class="t">${esc(ai.temperature)}</div></div>`:''}
+      ${ai.aeration?`<div class="card"><div class="k">Aération IA</div><div class="t">${esc(ai.aeration)}</div></div>`:''}
+      ${ai.conseil?`<div class="card full"><div class="k">Le conseil</div><div class="t">${esc(ai.conseil)}</div></div>`:''}
+    </div>
+    <div class="src">Avis généré le ${esc(ai.date||'')} — à prendre comme une estimation.</div>
+  </div><div class="btns" style="margin-top:10px"><button class="btn ai" id="aiBtn">Actualiser l'avis</button></div>`;
+}
+let sampleNS;
+async function askSommelier(k){
+  const b=bottles[k]; const zone=$('#aiZone'); const btn=$('#aiBtn');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>Le sommelier réfléchit…'; }
+  try{
+    if(sampleNS===undefined) sampleNS = window.claude && window.claude.use ? await window.claude.use('sample') : null;
+    if(!sampleNS){ zone.innerHTML='<div class="muted">Le sommelier IA n\'est pas disponible dans cette vue.</div>'; return; }
+    const prompt = `Tu es un sommelier français expert. Analyse ce vin et réponds UNIQUEMENT par un objet JSON valide, sans texte autour.
+Vin : ${JSON.stringify({cuvee:b.nom, domaine:b.domaine, appellation:b.appellation, region:b.region, type:TYPES[b.type].label, cepages:b.cepages, millesime:b.millesime||'non millésimé'})}
+Année actuelle : ${YEAR}.
+Format attendu :
+{"profil":"2 à 3 phrases sur le style attendu de cette cuvée (robe, nez, bouche)","temperature":"température de service précise et courte justification","aeration":"conseil d'aération/carafe précis pour son âge actuel","apogee_debut":2028,"apogee_fin":2038,"accords":["5 accords mets précis"],"conseil":"une astuce de dégustation concrète"}
+apogee_debut et apogee_fin sont des années (entiers) délimitant la fenêtre de dégustation idéale. Si le vin est inconnu, raisonne à partir de l'appellation, du type et du millésime.`;
+    let v=null;
+    if(typeof sampleNS.json==='function'){ try{ v = await sampleNS.json(prompt, {modelTier:'default'}); }catch(e){ if(e && (e.code==='not_granted'||e.code==='rate_limited')) throw e; v=null; } }
+    if(!v || typeof v!=='object'){ const r = await sampleNS(prompt, {modelTier:'default'}); const m = (r.text||'').match(/\{[\s\S]*\}/); v = m ? JSON.parse(m[0]) : null; }
+    if(!v) throw {message:'Réponse illisible'};
+    const ai = {profil:String(v.profil||''), temperature:String(v.temperature||''), aeration:String(v.aeration||''), apogee_debut:parseInt(v.apogee_debut,10)||null, apogee_fin:parseInt(v.apogee_fin,10)||null, accords:Array.isArray(v.accords)?v.accords.slice(0,6).map(String):[], conseil:String(v.conseil||''), date:new Date().toLocaleDateString('fr-FR')};
+    if(!bottles[k]) return;
+    bottles[k].ai = ai; persistBottle(k); syncBottles(); refreshStats();
+    if(sel && sel.key===k) { const st=sheet.scrollTop; renderFiche(k); sheet.scrollTop=st; }
+    toast('Fiche sommelier enregistrée.');
+  }catch(e){
+    console.warn(e);
+    const msg = e && e.code==='not_granted' ? 'Accès au sommelier IA refusé.' : e && e.code==='rate_limited' ? 'Le sommelier est très sollicité, réessayez dans un instant.' : 'Le sommelier n\'a pas pu répondre. Réessayez.';
+    if(zone && sel && sel.key===k){ const b2=$('#aiBtn'); if(b2){ b2.disabled=false; b2.textContent='Consulter le sommelier IA'; } toast(msg); }
+  }
+}
+
+/* --- formulaire --- */
+function emptySlotsFrom(k){
+  const [r0,c0]=k.split('-').map(Number), out=[]; const N=cave.rows*cave.cols; const s=r0*cave.cols+c0;
+  for(let i=0;i<N;i++){ const idx=(s+i)%N, kk=Math.floor(idx/cave.cols)+'-'+(idx%cave.cols); if(!bottles[kk]) out.push(kk); }
+  return out;
+}
+function openForm(k, b){
+  const editing = !!b; b = b || {type:'rouge_moyen', region:'Bordeaux'};
+  if(!editing){ for(const kk in plates) plates[kk].material = kk===k?plateMatHot:plateMat; }
+  const free = editing?0:emptySlotsFrom(k).length;
+  openSheet('form', `
+    <div class="slotbadge">${editing?'Modifier · ':'Nouvelle bouteille · '}${slotName(k)}</div>
+    <h2 style="margin-top:8px">${editing?esc(b.nom):'Ajouter un vin'}</h2>
+    <form id="wf" autocomplete="off">
+      <div class="f"><label class="l">Cuvée / nom du vin *</label><input name="nom" required maxlength="80" value="${esc(b.nom||'')}" placeholder="ex. Château Talbot"></div>
+      <div class="f"><label class="l">Domaine / Château</label><input name="domaine" maxlength="80" value="${esc(b.domaine||'')}"></div>
+      <div class="row2">
+        <div class="f"><label class="l">Type</label><select name="type">${Object.keys(TYPES).map(t=>`<option value="${t}" ${t===b.type?'selected':''}>${TYPES[t].label}</option>`).join('')}</select></div>
+        <div class="f"><label class="l">Région</label><select name="region">${REGIONS.map(r=>`<option ${r[0]===b.region?'selected':''}>${r[0]}</option>`).join('')}</select></div>
+      </div>
+      <div class="muted" id="typeEx" style="margin:-4px 0 12px"></div>
+      <div class="row2">
+        <div class="f"><label class="l">Appellation</label><input name="appellation" maxlength="60" value="${esc(b.appellation||'')}" placeholder="ex. Saint-Julien"></div>
+        <div class="f"><label class="l">Millésime</label><input name="millesime" inputmode="numeric" pattern="[0-9]*" maxlength="4" value="${esc(b.millesime||'')}" placeholder="vide = NV"></div>
+      </div>
+      <div class="row2">
+        <div class="f"><label class="l">Cépages</label><input name="cepages" maxlength="80" value="${esc(b.cepages||'')}"></div>
+        <div class="f"><label class="l">Prix (€)</label><input name="prix" inputmode="decimal" maxlength="8" value="${esc(b.prix||'')}"></div>
+      </div>
+      <div class="row2">
+        <div class="f"><label class="l">À boire dès (option)</label><input name="boireDe" inputmode="numeric" maxlength="4" value="${esc(b.boireDe||'')}" placeholder="auto"></div>
+        <div class="f"><label class="l">Jusqu'à (option)</label><input name="boireA" inputmode="numeric" maxlength="4" value="${esc(b.boireA||'')}" placeholder="auto"></div>
+      </div>
+      <div class="f"><label class="l">Notes</label><textarea name="notes" maxlength="600" placeholder="Occasion, cadeau, impressions…">${esc(b.notes||'')}</textarea></div>
+      ${editing?'':`<div class="f"><label class="l">Nombre de bouteilles (${free} cases libres)</label><input name="qte" inputmode="numeric" value="1" maxlength="3"></div>`}
+      <div class="err" id="ferr"></div>
+      <div class="btns"><button type="button" class="btn" id="fCancel">Annuler</button><button class="btn pri" type="submit">${editing?'Enregistrer':'Ranger en cave'}</button></div>
+    </form>`, true);
+  const f=$('#wf');
+  const showEx=()=>{ $('#typeEx').textContent = 'Exemples : '+TYPES[f.type.value].ex; };
+  f.type.onchange=showEx; showEx();
+  $('#fCancel').onclick=()=>{ if(editing && bottles[k]) { renderFiche(k); } else closeSheet(); };
+  f.onsubmit=e=>{
+    e.preventDefault();
+    const g=n=>(f[n]&&f[n].value||'').trim();
+    const err=m=>{$('#ferr').textContent=m;};
+    if(!g('nom')) return err('Indiquez au moins le nom du vin.');
+    const mil=g('millesime'); if(mil && (!/^\d{4}$/.test(mil) || +mil<1900 || +mil>YEAR)) return err('Millésime invalide (4 chiffres, ≤ '+YEAR+').');
+    for(const n of ['boireDe','boireA']){ const v=g(n); if(v && (!/^\d{4}$/.test(v) || +v<1900 || +v>2150)) return err('Années de garde invalides.'); }
+    const data = Object.assign({}, editing?bottles[k]:{}, {nom:g('nom'), domaine:g('domaine'), type:f.type.value, region:f.region.value, appellation:g('appellation'), millesime:mil, cepages:g('cepages'), prix:g('prix'), boireDe:g('boireDe'), boireA:g('boireA'), notes:g('notes')});
+    if(editing){
+      const old=bottles[k]; if(old && (old.nom!==data.nom || old.millesime!==data.millesime || old.appellation!==data.appellation || old.type!==data.type)) delete data.ai;
+      bottles[k]=data; persistBottle(k);
+      if(objs[k] && objs[k].label){ objs[k].inner.remove(objs[k].label); objs[k].label.material.map.dispose(); objs[k].label=null; }
+      const wasSel = sel && sel.key===k; if(wasSel && objs[k].sig!==sigOf(data)){ removeBottle(k); sel=null; }
+      syncBottles(); refreshStats();
+      if(objs[k]){ if(!objs[k].label){ objs[k].label=makeLabel(objs[k],data); objs[k].inner.add(objs[k].label); } if(!sel){ openBottle(k); } else renderFiche(k); }
+      toast('Fiche mise à jour.');
+    } else {
+      const q = clamp(parseInt(g('qte'),10)||1, 1, 999); const slots = emptySlotsFrom(k);
+      if(q>slots.length) return err(`Seulement ${slots.length} case(s) libre(s).`);
+      const now=new Date().toISOString();
+      slots.slice(0,q).forEach(kk=>{ bottles[kk]=Object.assign({}, data, {added:now}); persistBottle(kk); });
+      for(const kk in plates) plates[kk].material=plateMat;
+      syncBottles(); refreshStats(); sheet.classList.remove('open'); sheetMode=null; $('#hint').style.opacity=1;
+      toast(q>1?`${q} bouteilles rangées à partir de ${slotName(k)}.`:`Bouteille rangée en ${slotName(k)}.`);
+    }
+  };
+}
+
+/* --- configuration --- */
+function openConfig(first){
+  openSheet('config', `
+    <h2>${first?'Bienvenue, Enzo.':'Configuration de la cave'}</h2>
+    <div class="muted">${first?'Décrivez votre casier : je génère la cave en 3D. Les rangées sont repérées par des lettres (A en haut), les colonnes par des chiffres.':'Ajustez les dimensions de votre casier.'}</div>
+    <form id="cf" style="margin-top:16px">
+      <div class="f"><label class="l">Nom de la cave</label><input name="name" maxlength="40" value="${esc(cave.name||'Ma cave')}"></div>
+      <div class="row2">
+        <div class="f"><label class="l">Rangées (lignes)</label><input name="rows" inputmode="numeric" value="${cave.rows||6}" maxlength="2"></div>
+        <div class="f"><label class="l">Colonnes</label><input name="cols" inputmode="numeric" value="${cave.cols||8}" maxlength="2"></div>
+      </div>
+      <div class="muted">Jusqu'à 20 rangées × 30 colonnes.</div>
+      <div class="err" id="cerr"></div>
+      <div class="btns">${first?'':'<button type="button" class="btn" id="cCancel">Annuler</button>'}<button class="btn pri" type="submit">${first?'Construire ma cave':'Appliquer'}</button></div>
+    </form>
+    ${first?'':`<h3>Sauvegarde</h3>
+    <div class="muted">Copiez vos données (JSON) pour les archiver, par exemple dans un dépôt GitHub, ou collez une sauvegarde pour la restaurer.</div>
+    <div class="btns"><button class="btn" id="bExp">Copier la sauvegarde</button><button class="btn" id="bImpT">Restaurer…</button></div>
+    <div id="impZone" style="display:none;margin-top:10px"><textarea id="impTxt" placeholder="Collez ici le JSON de sauvegarde"></textarea><div class="btns"><button class="btn pri" id="bImp">Restaurer cette sauvegarde</button></div></div>`}
+  `, true);
+  const f=$('#cf');
+  if($('#cCancel')) $('#cCancel').onclick=closeSheet;
+  f.onsubmit=e=>{
+    e.preventDefault();
+    const R=parseInt(f.rows.value,10), C=parseInt(f.cols.value,10);
+    if(!(R>=1&&R<=20&&C>=1&&C<=30)) return $('#cerr').textContent='Dimensions entre 1–20 rangées et 1–30 colonnes.';
+    const lost = Object.keys(bottles).filter(k=>{ const [r,c]=k.split('-').map(Number); return r>=R||c>=C; });
+    if(lost.length) return $('#cerr').textContent=`${lost.length} bouteille(s) se trouvent hors de ces dimensions (${lost.slice(0,6).map(slotName).join(', ')}${lost.length>6?'…':''}). Déplacez-les ou débouchez-les d'abord.`;
+    const changed = R!==cave.rows || C!==cave.cols;
+    cave.name = f.name.value.trim()||'Ma cave'; cave.rows=R; cave.cols=C; persistCave();
+    closeSheet(); applyCave(changed);
+    if(first) setTimeout(()=>toast('Cave opérationnelle. Touchez une case pour y ranger un vin.'), 600);
+  };
+  if(!first){
+    $('#bExp').onclick=async()=>{ const txt=JSON.stringify({app:'DYONISOS',version:1,cave,bottles},null,1); try{ await navigator.clipboard.writeText(txt); toast('Sauvegarde copiée dans le presse-papiers.'); }catch(e){ $('#impZone').style.display='block'; $('#impTxt').value=txt; $('#impTxt').select(); toast('Copie bloquée : le texte est affiché, copiez-le manuellement.'); } };
+    $('#bImpT').onclick=()=>{ $('#impZone').style.display='block'; $('#impTxt').value=''; $('#impTxt').focus(); };
+    $('#bImp').onclick=()=>{
+      try{ const d=JSON.parse($('#impTxt').value); if(!d.cave||!d.bottles||!(d.cave.rows>=1)) throw 0;
+        const oldKeys=Object.keys(bottles);
+        cave=Object.assign({name:'Ma cave',history:[]}, d.cave); bottles=d.bottles;
+        persistCave(); oldKeys.filter(k=>!bottles[k]).forEach(persistBottle); Object.keys(bottles).forEach(persistBottle);
+        closeSheet(); applyCave(true); toast('Sauvegarde restaurée.');
+      }catch(e){ toast('Sauvegarde invalide.'); }
+    };
+  }
+}
+
+/* --- inventaire --- */
+function openInventory(){
+  const list = Object.keys(bottles).map(k=>({k,b:bottles[k],I:wineInfo(bottles[k])})).sort((a,b)=>a.I.S.ord-b.I.S.ord || (a.I.end-b.I.end));
+  const hist = cave.history||[];
+  openSheet('inv', `
+    <h2>Inventaire</h2>
+    <div class="muted">${list.length} bouteille(s), triées par urgence de dégustation.</div>
+    <div class="f" style="margin-top:12px"><input id="q" placeholder="Rechercher (nom, domaine, appellation, millésime)…"></div>
+    <div id="invList"></div>
+    ${hist.length?`<h3>Dernières dégustations</h3>${hist.slice(0,15).map(h=>`<div class="inv-item" style="cursor:default"><span class="d" style="background:#4a3a2a"></span><div><div class="n">${esc(h.nom)}</div><div class="m">${esc([h.domaine,h.millesime].filter(Boolean).join(' · '))}</div></div><span class="pos">${esc(h.date)}</span></div>`).join('')}`:''}
+  `, true);
+  const draw=q=>{
+    q=(q||'').toLowerCase();
+    const items=list.filter(x=>!q || [x.b.nom,x.b.domaine,x.b.appellation,x.b.millesime,x.b.region,x.b.cepages].join(' ').toLowerCase().includes(q));
+    $('#invList').innerHTML = items.length ? items.map(x=>`<div class="inv-item" data-k="${x.k}"><span class="d" style="background:${x.I.S.col}"></span><div><div class="n">${esc(x.b.nom)}</div><div class="m">${esc([x.b.domaine,x.b.millesime||'NV'].filter(Boolean).join(' · '))} — ${x.I.S.lab}</div></div><span class="pos">${slotName(x.k)}</span></div>`).join('') : `<div class="muted" style="padding:14px 0">${list.length?'Aucun résultat.':'La cave est vide : touchez une case pour ranger votre premier vin.'}</div>`;
+    document.querySelectorAll('#invList .inv-item').forEach(el=>el.onclick=()=>openBottle(el.dataset.k));
+  };
+  $('#q').oninput=e=>draw(e.target.value); draw('');
+}
+
+/* --- application de la config --- */
+function applyCave(rebuild){
+  refreshStats();
+  if(!cave.rows){ openConfig(true); return; }
+  if(rebuild || !rack){ if(sel){ sel=null; } moving.clear(); buildRack(); }
+  else syncBottles();
+}
+
+/* ============================ BOUCLE ============================ */
+function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', ()=>{ resize(); if(rack){ const keepR = ctl.r; fitCamera(false); ctl.r = Math.min(keepR, ctl.max); } });
+resize();
+
+let last = performance.now(), clock=0;
+function frame(now){
+  const dt = Math.min(.05, (now-last)/1000); last = now; clock += dt;
+  const a = 1 - Math.exp(-dt*9);
+  for(const k of ['theta','phi','r','tx','ty']) cur[k] += (ctl[k]-cur[k])*a;
+  const sp = Math.sin(cur.phi);
+  camera.position.set(cur.tx + cur.r*sp*Math.sin(cur.theta), cur.ty + cur.r*Math.cos(cur.phi), cur.r*sp*Math.cos(cur.theta));
+  camera.lookAt(cur.tx, cur.ty, 0);
+  camera.updateMatrixWorld();
+  for(const o of moving){
+    o.t = clamp(o.t + o.dir*dt/1.15, 0, 1);
+    if(o===sel){ o.spinT = clamp(o.spinT, -Math.PI, Math.PI); o.spin += (o.spinT + Math.sin(clock*.6)*.35 - o.spin)*Math.min(1,dt*4); }
+    else o.spin *= (1-Math.min(1,dt*4));
+    poseBottle(o, o.t);
+    if(o.dir<0 && o.t<=0){ moving.delete(o); o.pivot.position.copy(o.home); o.tilt.rotation.x=0; o.pivot.rotation.y=0; o.ring.visible=matMode; if(o.label){ o.inner.remove(o.label); o.label.material.map.dispose(); o.label.material.dispose(); o.label.geometry.dispose(); o.label=null; } }
+  }
+  dim += ((sel?1:0) - dim) * Math.min(1, dt*4);
+  hemi.intensity = BASE.hemi*(1-.55*dim); key.intensity = BASE.key*(1-.5*dim); fill.intensity = BASE.fill*(1-.6*dim);
+  if(sel){ focus.position.copy(camera.position).add(new THREE.Vector3(.25,.35,0)); }
+  focus.intensity = 1.6*dim;
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+/* ============================ DÉMARRAGE ============================ */
+applyCave(true);
+requestAnimationFrame(frame);
+setTimeout(()=>$('#loading').classList.add('gone'), 500);
+setTimeout(()=>{ if(sheetMode===null) $('#hint').style.opacity=.0; }, 9000);
+initCloud();
+})();
+</script>
+</body>
+</html>
