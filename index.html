@@ -99,6 +99,11 @@ textarea{min-height:76px;resize:vertical}
 #loading .sub{justify-content:center;margin-top:12px}
 #loading.gone{opacity:0;pointer-events:none}
 .muted{color:var(--muted);font-size:12.5px;line-height:1.5}
+.scan{display:flex;gap:12px;align-items:center;margin:14px 0 16px;padding:12px;border:1px dashed var(--line);border-radius:16px}
+.scan .ph{width:64px;height:84px;border-radius:10px;background:rgba(0,0,0,.35);display:grid;place-items:center;overflow:hidden;flex:none;color:var(--gold2)}
+.scan .ph svg{width:28px;height:28px}
+.scan .ph img,.lblphoto{width:100%;height:100%;object-fit:cover}
+.lblphoto{float:right;width:84px;height:112px;border-radius:12px;margin:0 0 8px 12px;border:1px solid var(--line)}
 .slotbadge{display:inline-block;font-size:11px;padding:3px 8px;border-radius:7px;background:rgba(212,175,55,.15);color:var(--gold2);letter-spacing:.06em}
 </style>
 </head>
@@ -235,7 +240,8 @@ const LS_KEY = 'dyonisos.v1';
 let cave = {name:'Ma cave', rows:0, cols:0, history:[]};
 let bottles = {};
 (function loadLocal(){ try{ const d = JSON.parse(localStorage.getItem(LS_KEY)||'null'); if(d){ cave = Object.assign(cave, d.cave||{}); bottles = d.bottles||{}; } }catch(e){} })();
-function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({cave, bottles})); }catch(e){} }
+let lsWarned=false;
+function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({cave, bottles})); }catch(e){ if(!caveRef && !lsWarned){ lsWarned=true; setTimeout(()=>toast('Mémoire de l\'appareil pleine : copiez une sauvegarde depuis ⚙.'),50); } } }
 
 let caveRef=null, botCol=null;
 const chains = {};
@@ -458,6 +464,17 @@ function makeLabel(o, b){
     g.fillStyle=T.accent; fitFont(g,b.appellation||b.region||'','italic 600',40,'"Cormorant Garamond", serif',620); g.fillText(b.appellation||b.region||'', 512, h*.62);
     g.fillStyle='#24160c'; g.font='700 70px "Cormorant Garamond", serif'; g.fillText(b.millesime||'NV', 512, h*.84);
   });
+  if(b.photo){
+    const im=new Image();
+    im.onload=()=>{
+      const g=tex.image.getContext('2d'), W2=tex.image.width, H2=tex.image.height, x0=150, y0=26, w0=724, h0=H2-52;
+      const s=Math.max(w0/im.width, h0/im.height), dw=im.width*s, dh=im.height*s;
+      g.save(); g.beginPath(); g.rect(x0,y0,w0,h0); g.clip(); g.drawImage(im, x0+(w0-dw)/2, y0+(h0-dh)/2, dw, dh); g.restore();
+      g.strokeStyle=T.accent; g.lineWidth=7; g.strokeRect(x0,y0,w0,h0);
+      tex.needsUpdate=true;
+    };
+    im.src=b.photo;
+  }
   const geo = new THREE.CylinderGeometry(P.R+.0007, P.R+.0007, P.labelH, 48, 1, true, -arc/2, arc);
   geo.translate(0, P.labelY, 0);
   const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({map:tex, roughness:.85, metalness:0, side:THREE.FrontSide}));
@@ -595,6 +612,7 @@ function renderFiche(k){
   const ai = b.ai;
   const accords = (ai && Array.isArray(ai.accords) && ai.accords.length) ? ai.accords : T.accords;
   openSheet('fiche', `
+    ${b.photo?`<img class="lblphoto" src="${esc(b.photo)}" alt="Étiquette">`:''}
     <div class="slotbadge">Emplacement ${slotName(k)}</div>
     <h2 style="margin-top:8px">${esc(b.nom)}</h2>
     <div class="meta">${esc([b.domaine, b.appellation, b.region].filter(Boolean).join(' · '))}</div>
@@ -656,34 +674,83 @@ function aiHtml(ai){
     <div class="src">Avis généré le ${esc(ai.date||'')} — à prendre comme une estimation.</div>
   </div><div class="btns" style="margin-top:10px"><button class="btn ai" id="aiBtn">Actualiser l'avis</button></div>`;
 }
-let sampleNS;
+/* --- IA : claude.ai (sample) ou clé API Anthropic (version GitHub) --- */
+let sampleNS, sampleImg=false;
+async function getSample(){
+  if(sampleNS===undefined){
+    try{ sampleNS = window.claude && window.claude.use ? await window.claude.use('sample') : null; }catch(e){ sampleNS=null; }
+    if(sampleNS && sampleNS.limits){ try{ sampleImg = !!(await sampleNS.limits()).images; }catch(e){} }
+  }
+  return sampleNS;
+}
+const apiKey = () => { try{ return localStorage.getItem('dyonisos.apikey')||''; }catch(e){ return ''; } };
+const parseJSON = t => { const m=String(t||'').match(/\{[\s\S]*\}/); if(!m) throw {code:'parse'}; return JSON.parse(m[0]); };
+const blobToB64 = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=rej; r.readAsDataURL(b); });
+async function askClaude(prompt, img){
+  const s = await getSample();
+  if(s){
+    const opts = {modelTier:'default'};
+    if(img){ if(!sampleImg) throw {code:'no_images'}; opts.images=[img]; }
+    if(typeof s.json==='function'){ try{ const v=await s.json(prompt, opts); if(v && typeof v==='object') return v; }catch(e){ if(e && (e.code==='not_granted'||e.code==='rate_limited')) throw e; } }
+    const r = await s(prompt, opts); return parseJSON(r.text);
+  }
+  const key = apiKey(); if(!key) throw {code:'no_ai'};
+  const content = [];
+  if(img) content.push({type:'image', source:{type:'base64', media_type:'image/jpeg', data:await blobToB64(img)}});
+  content.push({type:'text', text:prompt});
+  const res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST', headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}, body:JSON.stringify({model:'claude-sonnet-5-5', max_tokens:1500, messages:[{role:'user', content}]})});
+  if(!res.ok) throw {code:'api', message:String(res.status)};
+  const j = await res.json(); return parseJSON((j.content||[]).map(c=>c.text||'').join(''));
+}
+function aiErr(e){
+  const c = e && e.code;
+  return c==='no_ai' ? 'IA indisponible ici : ajoutez une clé API Anthropic dans ⚙.'
+    : c==='no_images' ? 'La lecture de photo n\'est pas disponible dans cette vue.'
+    : c==='not_granted' ? 'Accès à l\'IA refusé.'
+    : c==='rate_limited' ? 'IA très sollicitée, réessayez dans un instant.'
+    : c==='api' ? `Clé API refusée ou erreur réseau (${e.message}).`
+    : 'L\'IA n\'a pas pu répondre. Réessayez.';
+}
+const AI_FIELDS = `"profil":"2 à 3 phrases sur le style de cette cuvée (robe, nez, bouche)","temperature":"température de service précise et courte justification","aeration":"conseil d'aération/carafe précis pour son âge actuel","apogee_debut":2028,"apogee_fin":2038,"accords":["5 accords mets précis"],"conseil":"une astuce de dégustation concrète"`;
+function toAi(v){ return {profil:String(v.profil||''), temperature:String(v.temperature||''), aeration:String(v.aeration||''), apogee_debut:parseInt(v.apogee_debut,10)||null, apogee_fin:parseInt(v.apogee_fin,10)||null, accords:Array.isArray(v.accords)?v.accords.slice(0,6).map(String):[], conseil:String(v.conseil||''), date:new Date().toLocaleDateString('fr-FR')}; }
+
 async function askSommelier(k){
-  const b=bottles[k]; const zone=$('#aiZone'); const btn=$('#aiBtn');
+  const b=bottles[k]; const btn=$('#aiBtn');
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>Le sommelier réfléchit…'; }
   try{
-    if(sampleNS===undefined) sampleNS = window.claude && window.claude.use ? await window.claude.use('sample') : null;
-    if(!sampleNS){ zone.innerHTML='<div class="muted">Le sommelier IA n\'est pas disponible dans cette vue.</div>'; return; }
     const prompt = `Tu es un sommelier français expert. Analyse ce vin et réponds UNIQUEMENT par un objet JSON valide, sans texte autour.
 Vin : ${JSON.stringify({cuvee:b.nom, domaine:b.domaine, appellation:b.appellation, region:b.region, type:TYPES[b.type].label, cepages:b.cepages, millesime:b.millesime||'non millésimé'})}
 Année actuelle : ${YEAR}.
-Format attendu :
-{"profil":"2 à 3 phrases sur le style attendu de cette cuvée (robe, nez, bouche)","temperature":"température de service précise et courte justification","aeration":"conseil d'aération/carafe précis pour son âge actuel","apogee_debut":2028,"apogee_fin":2038,"accords":["5 accords mets précis"],"conseil":"une astuce de dégustation concrète"}
+Format attendu : {${AI_FIELDS}}
 apogee_debut et apogee_fin sont des années (entiers) délimitant la fenêtre de dégustation idéale. Si le vin est inconnu, raisonne à partir de l'appellation, du type et du millésime.`;
-    let v=null;
-    if(typeof sampleNS.json==='function'){ try{ v = await sampleNS.json(prompt, {modelTier:'default'}); }catch(e){ if(e && (e.code==='not_granted'||e.code==='rate_limited')) throw e; v=null; } }
-    if(!v || typeof v!=='object'){ const r = await sampleNS(prompt, {modelTier:'default'}); const m = (r.text||'').match(/\{[\s\S]*\}/); v = m ? JSON.parse(m[0]) : null; }
-    if(!v) throw {message:'Réponse illisible'};
-    const ai = {profil:String(v.profil||''), temperature:String(v.temperature||''), aeration:String(v.aeration||''), apogee_debut:parseInt(v.apogee_debut,10)||null, apogee_fin:parseInt(v.apogee_fin,10)||null, accords:Array.isArray(v.accords)?v.accords.slice(0,6).map(String):[], conseil:String(v.conseil||''), date:new Date().toLocaleDateString('fr-FR')};
+    const ai = toAi(await askClaude(prompt));
     if(!bottles[k]) return;
     bottles[k].ai = ai; persistBottle(k); syncBottles(); refreshStats();
-    if(sel && sel.key===k) { const st=sheet.scrollTop; renderFiche(k); sheet.scrollTop=st; }
+    if(sel && sel.key===k){ const st=sheet.scrollTop; renderFiche(k); sheet.scrollTop=st; }
     toast('Fiche sommelier enregistrée.');
   }catch(e){
-    console.warn(e);
-    const msg = e && e.code==='not_granted' ? 'Accès au sommelier IA refusé.' : e && e.code==='rate_limited' ? 'Le sommelier est très sollicité, réessayez dans un instant.' : 'Le sommelier n\'a pas pu répondre. Réessayez.';
-    if(zone && sel && sel.key===k){ const b2=$('#aiBtn'); if(b2){ b2.disabled=false; b2.textContent='Consulter le sommelier IA'; } toast(msg); }
+    console.warn(e); toast(aiErr(e));
+    const b2=$('#aiBtn'); if(b2 && sel && sel.key===k){ b2.disabled=false; b2.textContent='Consulter le sommelier IA'; }
   }
 }
+
+/* --- photo d'étiquette --- */
+const CAM_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.6"/></svg>';
+function loadImg(file){ return new Promise((res,rej)=>{ const u=URL.createObjectURL(file); const i=new Image(); i.onload=()=>res(i); i.onerror=()=>rej({code:'img'}); i.src=u; }); }
+function scaled(img, max){ const s=Math.min(1, max/Math.max(img.naturalWidth, img.naturalHeight)); const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(img.naturalWidth*s)); c.height=Math.max(1,Math.round(img.naturalHeight*s)); c.getContext('2d').drawImage(img,0,0,c.width,c.height); return c; }
+const toBlob = (c,q) => new Promise(r=>c.toBlob(r,'image/jpeg',q));
+async function scanLabel(file){
+  const img = await loadImg(file);
+  const photo = scaled(img, 420).toDataURL('image/jpeg', .72);
+  const big = await toBlob(scaled(img, 1280), .82);
+  const prompt = `Tu es un sommelier français expert. Lis l'étiquette de vin sur cette photo et réponds UNIQUEMENT par un objet JSON valide, sans texte autour :
+{"nom":"nom de la cuvée (ou du château s'il n'y a pas de cuvée)","domaine":"domaine, château ou maison","appellation":"appellation","region":"une valeur EXACTE parmi : ${REGIONS.map(r=>r[0]).join(' | ')}","type":"une valeur EXACTE parmi : ${Object.keys(TYPES).map(t=>t+' ('+TYPES[t].label+')').join(' | ')}","millesime":"année sur 4 chiffres, ou \\"\\" si non millésimé","cepages":"cépages (connus ou très probables), courts",${AI_FIELDS}}
+Si une information n'est pas lisible, déduis-la de ta connaissance de cette cuvée ou mets "". Année actuelle : ${YEAR}. Si la photo ne montre pas de vin, renvoie {"erreur":"pas de vin"}.`;
+  const v = await askClaude(prompt, big);
+  if(v.erreur) throw {code:'novin'};
+  return {photo, v};
+}
+
 
 /* --- formulaire --- */
 function emptySlotsFrom(k){
@@ -698,6 +765,14 @@ function openForm(k, b){
   openSheet('form', `
     <div class="slotbadge">${editing?'Modifier · ':'Nouvelle bouteille · '}${slotName(k)}</div>
     <h2 style="margin-top:8px">${editing?esc(b.nom):'Ajouter un vin'}</h2>
+    <div class="scan">
+      <div class="ph" id="phPrev">${b.photo?`<img src="${esc(b.photo)}" alt="">`:CAM_SVG}</div>
+      <div style="flex:1;min-width:0">
+        <button type="button" class="btn ai" id="scanBtn" style="width:100%">${b.photo?'Reprendre la photo':'Photographier l\'étiquette'}</button>
+        <div class="muted" id="scanMsg" style="margin-top:6px">L'IA lit l'étiquette et remplit toute la fiche.</div>
+      </div>
+      <input type="file" id="scanFile" accept="image/*" hidden>
+    </div>
     <form id="wf" autocomplete="off">
       <div class="f"><label class="l">Cuvée / nom du vin *</label><input name="nom" required maxlength="80" value="${esc(b.nom||'')}" placeholder="ex. Château Talbot"></div>
       <div class="f"><label class="l">Domaine / Château</label><input name="domaine" maxlength="80" value="${esc(b.domaine||'')}"></div>
@@ -726,6 +801,29 @@ function openForm(k, b){
   const f=$('#wf');
   const showEx=()=>{ $('#typeEx').textContent = 'Exemples : '+TYPES[f.type.value].ex; };
   f.type.onchange=showEx; showEx();
+  const pending = {};
+  const fileIn=$('#scanFile'), sBtn=$('#scanBtn'), sMsg=$('#scanMsg');
+  sBtn.onclick=()=>{ fileIn.value=''; fileIn.click(); };
+  fileIn.onchange=async()=>{
+    const file=fileIn.files&&fileIn.files[0]; if(!file) return;
+    sBtn.disabled=true; sBtn.innerHTML='<span class="spin"></span>Lecture de l\'étiquette…'; sMsg.textContent='Analyse en cours, quelques secondes.';
+    try{
+      const img = await loadImg(file); pending.photo = scaled(img,420).toDataURL('image/jpeg',.72);
+      $('#phPrev').innerHTML = `<img src="${pending.photo}" alt="">`;
+      const {v} = await scanLabel(file);
+      const set=(n,val)=>{ if(val!=null && String(val).trim()!=='' && f[n]) f[n].value=String(val).trim(); };
+      set('nom',v.nom); set('domaine',v.domaine); set('appellation',v.appellation); set('cepages',v.cepages);
+      const mil=String(v.millesime||'').match(/\d{4}/); f.millesime.value = mil ? mil[0] : '';
+      const ty=String(v.type||'').split(' ')[0]; if(TYPES[ty]) f.type.value=ty;
+      if(REG[v.region]) f.region.value=v.region;
+      showEx(); pending.ai = toAi(v);
+      sMsg.textContent='Fiche remplie : vérifiez puis rangez la bouteille.'; toast('Étiquette lue.');
+    }catch(e){
+      console.warn(e);
+      sMsg.textContent = e&&e.code==='novin' ? 'Je ne vois pas d\'étiquette de vin sur cette photo.' : e&&e.code==='img' ? 'Image illisible.' : aiErr(e)+(pending.photo?' La photo est quand même conservée.':'');
+    }
+    sBtn.disabled=false; sBtn.textContent='Reprendre la photo';
+  };
   $('#fCancel').onclick=()=>{ if(editing && bottles[k]) { renderFiche(k); } else closeSheet(); };
   f.onsubmit=e=>{
     e.preventDefault();
@@ -735,8 +833,10 @@ function openForm(k, b){
     const mil=g('millesime'); if(mil && (!/^\d{4}$/.test(mil) || +mil<1900 || +mil>YEAR)) return err('Millésime invalide (4 chiffres, ≤ '+YEAR+').');
     for(const n of ['boireDe','boireA']){ const v=g(n); if(v && (!/^\d{4}$/.test(v) || +v<1900 || +v>2150)) return err('Années de garde invalides.'); }
     const data = Object.assign({}, editing?bottles[k]:{}, {nom:g('nom'), domaine:g('domaine'), type:f.type.value, region:f.region.value, appellation:g('appellation'), millesime:mil, cepages:g('cepages'), prix:g('prix'), boireDe:g('boireDe'), boireA:g('boireA'), notes:g('notes')});
+    if(pending.photo) data.photo = pending.photo;
     if(editing){
       const old=bottles[k]; if(old && (old.nom!==data.nom || old.millesime!==data.millesime || old.appellation!==data.appellation || old.type!==data.type)) delete data.ai;
+      if(pending.ai) data.ai = pending.ai;
       bottles[k]=data; persistBottle(k);
       if(objs[k] && objs[k].label){ objs[k].inner.remove(objs[k].label); objs[k].label.material.map.dispose(); objs[k].label=null; }
       const wasSel = sel && sel.key===k; if(wasSel && objs[k].sig!==sigOf(data)){ removeBottle(k); sel=null; }
@@ -744,6 +844,7 @@ function openForm(k, b){
       if(objs[k]){ if(!objs[k].label){ objs[k].label=makeLabel(objs[k],data); objs[k].inner.add(objs[k].label); } if(!sel){ openBottle(k); } else renderFiche(k); }
       toast('Fiche mise à jour.');
     } else {
+      if(pending.ai) data.ai = pending.ai;
       const q = clamp(parseInt(g('qte'),10)||1, 1, 999); const slots = emptySlotsFrom(k);
       if(q>slots.length) return err(`Seulement ${slots.length} case(s) libre(s).`);
       const now=new Date().toISOString();
@@ -770,7 +871,11 @@ function openConfig(first){
       <div class="err" id="cerr"></div>
       <div class="btns">${first?'':'<button type="button" class="btn" id="cCancel">Annuler</button>'}<button class="btn pri" type="submit">${first?'Construire ma cave':'Appliquer'}</button></div>
     </form>
-    ${first?'':`<h3>Sauvegarde</h3>
+    ${first?'':`<h3>Intelligence artificielle</h3>
+    <div class="muted">Sur claude.ai, la lecture d'étiquette et le sommelier fonctionnent directement. Sur la version GitHub, collez une clé API Anthropic : elle reste uniquement sur cet appareil et l'usage est facturé sur votre compte Anthropic.</div>
+    <div class="f" style="margin-top:10px"><input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(apiKey())}"></div>
+    <div class="btns" style="margin-top:0"><button class="btn" id="bKey">Enregistrer la clé</button></div>
+    <h3>Sauvegarde</h3>
     <div class="muted">Copiez vos données (JSON) pour les archiver, par exemple dans un dépôt GitHub, ou collez une sauvegarde pour la restaurer.</div>
     <div class="btns"><button class="btn" id="bExp">Copier la sauvegarde</button><button class="btn" id="bImpT">Restaurer…</button></div>
     <div id="impZone" style="display:none;margin-top:10px"><textarea id="impTxt" placeholder="Collez ici le JSON de sauvegarde"></textarea><div class="btns"><button class="btn pri" id="bImp">Restaurer cette sauvegarde</button></div></div>`}
@@ -789,6 +894,7 @@ function openConfig(first){
     if(first) setTimeout(()=>toast('Cave opérationnelle. Touchez une case pour y ranger un vin.'), 600);
   };
   if(!first){
+    $('#bKey').onclick=()=>{ try{ const v=$('#apiKey').value.trim(); if(v) localStorage.setItem('dyonisos.apikey', v); else localStorage.removeItem('dyonisos.apikey'); toast(v?'Clé enregistrée sur cet appareil.':'Clé supprimée.'); }catch(e){ toast('Stockage local indisponible.'); } };
     $('#bExp').onclick=async()=>{ const txt=JSON.stringify({app:'DYONISOS',version:1,cave,bottles},null,1); try{ await navigator.clipboard.writeText(txt); toast('Sauvegarde copiée dans le presse-papiers.'); }catch(e){ $('#impZone').style.display='block'; $('#impTxt').value=txt; $('#impTxt').select(); toast('Copie bloquée : le texte est affiché, copiez-le manuellement.'); } };
     $('#bImpT').onclick=()=>{ $('#impZone').style.display='block'; $('#impTxt').value=''; $('#impTxt').focus(); };
     $('#bImp').onclick=()=>{
