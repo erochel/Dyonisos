@@ -11,6 +11,7 @@ Cave à vin virtuelle en 3D : on choisit le nombre de rangées et de colonnes de
   - statut de maturité (trop jeune, prêt, apogée, à boire vite, déclin) et frise de la fenêtre de dégustation ;
   - température de service et délai pour sortir la bouteille de la cave ou la rafraîchir ;
   - aération / carafe selon l'âge, verre conseillé, accords mets-vin, conservation.
+- **Photo d'étiquette** : on photographie l'étiquette, l'IA la lit et remplit toute la fiche (cuvée, domaine, appellation, région, type, millésime, cépages + avis sommelier). La photo devient l'étiquette de la bouteille en 3D.
 - **Mode Maturité** : un anneau coloré sur chaque cul de bouteille.
 - **Inventaire** trié par urgence, recherche, historique des bouteilles dégustées.
 - **Sauvegarde** : export/import JSON depuis le menu ⚙.
@@ -23,6 +24,11 @@ Un seul fichier : `index.html` (Three.js chargé depuis cdnjs).
 - **GitHub Pages** : Settings → Pages → Source « Deploy from a branch » → `main` / `root`. L'app sera en ligne sur `https://erochel.github.io/Dyonisos/`.
 - **Sur claude.ai** : la version publiée en artifact synchronise la cave dans le compte et ajoute le « Sommelier IA ».
 
+## IA (lecture d'étiquette & sommelier)
+
+- Sur claude.ai : fonctionne directement.
+- Sur GitHub Pages : ⚙ → *Intelligence artificielle* → coller une clé API Anthropic. Elle reste dans le navigateur de l'appareil, l'usage est facturé sur le compte Anthropic.
+
 ## Modèle de garde
 
-Les fenêtres de dégustation sont estimées à partir du type de vin, de la région et du millésime. Elles peuvent être remplacées par vos propres années (« À boire dès / Jusqu'à ») ou par l'avis du sommelier IA.
+Les températures, conseils d'aération et fenêtres de dégustation de base viennent de règles générales de sommellerie codées dans l'app (9 familles de vins, coefficient de garde par région, âge du vin). Ce sont des estimations moyennes, pas des données propres à chaque cuvée. Elles peuvent être remplacées par vos propres années (« À boire dès / Jusqu'à ») ou par l'avis du sommelier IA.
